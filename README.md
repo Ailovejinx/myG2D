@@ -2,6 +2,8 @@ About
 ============
 G2D is a software that enables capturing videos from Grand Theft Auto V (GTA V), a popular role playing game set in an expansive virtual city. The target users of our software are computer vision researchers who wish to collect hyper-realistic computer-generated imagery of a city from the street level, under controlled 6DOF camera poses and varying environmental conditions (weather, time of day and traffic density). 
 
+Test
+
 Project page: https://sites.google.com/view/g2d-software/home
 
 
@@ -37,7 +39,7 @@ Installation
 + Our software only works for Windows OS.
 
 + You can either use the pre-built binaries for Window or manually build the source code
- 
+
 + [Recommended] Invisibility Cloak (https://www.gta5-mods.com/scripts/invisibility-cloak): A mod could make protagonist invisible
 
 + [Recommended] 100% game save (https://www.gta5-mods.com/misc/100-save-game): To open the whole map of the game
@@ -107,6 +109,7 @@ How to create sparse/dense trajectory
       * Regarding the rotations of gameplay camera, users have two options:
           + Third-person view mode: Users could use the mouse to control the viewing direction of gameplay camera
           + Third-person view mode: Gameplay camera is attached to the eyes of player, so its viewing direction is always forward. Users do not have to do anything.
+          
         
         In every rendered frame, the tool extracts the rotations of the gameplay camera.
 10. When "Execute Sparse Trajectory" is finished, dense trajectory could be found within GTA V directory. The file name is "trajectory_dense.txt"
