@@ -7,6 +7,9 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <algorithm>
+
+#define DEBUG TRUE
 
 
 /*********************************************************************/
@@ -16,7 +19,7 @@
 // 时间因子，控制慢镜头录制
 float timeFactor = 8.0;
 // 最大距离，远处的车辆没有参考意义
-float maxDistance = 200.0;
+float maxDistance = 100.0;
 
 
 // notification text
@@ -174,7 +177,7 @@ void drawMenuLine(std::string caption, float line_width, float line_height, floa
 
 	// rect
 	drawRect(line_left_scaled, line_top_scaled + (0.00278f),
-		line_width_scaled, ((((float)(num25)* UI::_0xDB88A37483346780(text_scale, 0)) + (line_height_scaled * 2.0f)) + 0.005f),
+		line_width_scaled, ((((float)(num25)*UI::_0xDB88A37483346780(text_scale, 0)) + (line_height_scaled * 2.0f)) + 0.005f),
 		rect_col[0], rect_col[1], rect_col[2], rect_col[3]);
 }
 
@@ -201,7 +204,7 @@ void GDIReleaseScreenCapture()
 
 bool GDITakeScreenshots(std::string file_name)
 {
-	BitBlt(_screen_capture_worker.hCaptureDC, 0, 0, 
+	BitBlt(_screen_capture_worker.hCaptureDC, 0, 0,
 		_screen_capture_worker.nScreenWidth, _screen_capture_worker.nScreenHeight,
 		_screen_capture_worker.hDesktopDC, 0, 0, SRCCOPY | CAPTUREBLT);
 	CImage image;
@@ -216,7 +219,7 @@ bool switchPressed()
 	return IsKeyJustUp(VK_F5);
 }
 
-void getButtonState(bool *select, bool *back, bool *up, bool *down)
+void getButtonState(bool* select, bool* back, bool* up, bool* down)
 {
 	if (select) *select = IsKeyDown(VK_NUMPAD5);
 	if (back) *back = IsKeyDown(VK_NUMPAD0) || switchPressed() || IsKeyDown(VK_BACK);
@@ -270,7 +273,7 @@ void handleCreateTrajectoryMenu(std::string menu_name)
 	std::string menu_list[menu_item_number] = { "ADD VERTEX FROM MARKER ON THE MAP", "ADD VERTEX FROM PROTAGONIST POSITION", "..." };
 
 	DWORD wait_time = 150;
-	
+
 	while (true)
 	{
 		// timed menu draw, used for pause after active line switch
@@ -380,7 +383,7 @@ bool readSparseTrajectory()
 	if (_trajectory.size() < 1)
 		return false;
 
-	return true; 
+	return true;
 }
 
 bool readDenseTrajectory()
@@ -398,7 +401,7 @@ bool readDenseTrajectory()
 	{
 		Point p;
 		int temp;
-		
+
 		// read player location
 		file >> p.player_coord.x;
 		file >> p.player_coord.y;
@@ -453,7 +456,7 @@ void moveToStartingPoint()
 			if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(coords.x, coords.y, groundCheckHeight[i], &coords.z, FALSE))
 			{
 				groundFound = true;
-				coords.z += 3.0;
+				coords.z += 1.0;
 				break;
 			}
 		}
@@ -482,7 +485,7 @@ void moveToStartingPoint()
 		WAIT(0);
 		setNotificationText("Moved to starting point");
 	}
-	
+
 }
 
 void createCamera()
@@ -500,7 +503,7 @@ void updateCamera(float coord_x, float coord_y, float coord_z
 
 void activateCamera()
 {
-	CAM::RENDER_SCRIPT_CAMS(true, 1, 1, 1, 0); // set our own camera rendering
+	CAM::RENDER_SCRIPT_CAMS(TRUE, FALSE, 0, TRUE, TRUE); // set our own camera rendering
 }
 
 void backToGameplayCamera()
@@ -527,10 +530,10 @@ bool readyExecuteSparseTrajectory()
 	if (dist > _DISTANCE_THRESHOLD_SMALL)
 	{
 		setNotificationText("Please move to starting point first");
-		
+
 		return false;
 	}
-	
+
 	return true;
 }
 
@@ -549,7 +552,7 @@ void executeSparseTrajectory()
 	// We get player location to store in dense trajectory
 	Entity player_ped = PLAYER::PLAYER_PED_ID();
 	Vector3 player_coord = ENTITY::GET_ENTITY_COORDS(player_ped, true);
-	
+
 	// We get 6D pose of gameplay camera to store in dense trajectory
 	Vector3 gameplay_cam_coord = CAM::GET_GAMEPLAY_CAM_COORD();
 	Vector3 gameplay_cam_rot = CAM::GET_GAMEPLAY_CAM_ROT(_order_rot);
@@ -561,7 +564,7 @@ void executeSparseTrajectory()
 		resetExecuteTrajectory();
 		return;
 	}
-	
+
 	// if player reaches to the destination point, move to next point
 	float dist = computeDistanceXY(player_coord, _trajectory[_traj_idx].player_coord);
 	if (dist < _DISTANCE_THRESHOLD)
@@ -569,8 +572,8 @@ void executeSparseTrajectory()
 		_traj_idx++;
 		AI::TASK_GO_STRAIGHT_TO_COORD(player_ped, _trajectory[_traj_idx].player_coord.x, _trajectory[_traj_idx].player_coord.y, _trajectory[_traj_idx].player_coord.z,
 			2, 60000, 1, 0);
-		
-		setNotificationText("Go to point " + std::to_string(_traj_idx+1) +
+
+		setNotificationText("Go to point " + std::to_string(_traj_idx + 1) +
 			": (x,y) = " + "(" + std::to_string(_trajectory[_traj_idx].player_coord.x) + "," +
 			std::to_string(_trajectory[_traj_idx].player_coord.y) + ")");
 	}
@@ -583,7 +586,7 @@ void executeSparseTrajectory()
 	_ofile << gameplay_cam_coord.x << " " << gameplay_cam_coord.y << " " << gameplay_cam_coord.z << " ";
 	_ofile << gameplay_cam_rot.x << " " << gameplay_cam_rot.y << " " << gameplay_cam_rot.z << " ";
 	_ofile << _traj_idx << " " << _traj_idx + 1 << std::endl;
-	
+
 	// if we reach to last point of trajectory, stop function
 	if (_traj_idx == _trajectory.size() - 1)
 	{
@@ -591,7 +594,7 @@ void executeSparseTrajectory()
 
 		if (_ofile.is_open())
 			_ofile.close();
-		
+
 		return;
 	}
 }
@@ -623,13 +626,13 @@ void executeDenseTrajectory()
 
 	// 建立VEHICLE矩阵，获取所有车辆
 	const int ARR_SIZE = 1024;
-	Vehicle *vehicles = new Vehicle[ARR_SIZE];
+	Vehicle* vehicles = new Vehicle[ARR_SIZE];
 	//Vehicle vehicles[ARR_SIZE];
 	int count = worldGetAllVehicles(vehicles, ARR_SIZE);
 
 	if (_traj_idx == _trajectory.size())
 	{
-		GAMEPLAY::SET_TIME_SCALE(1.0f);	// 这是数据采集结束，结束慢动作
+		GAMEPLAY::SET_TIME_SCALE(1.0f);	// 这时数据采集结束，结束慢动作
 		resetExecuteTrajectory();
 
 		if (CAM::IS_CAM_RENDERING(_camera) == TRUE)
@@ -643,123 +646,132 @@ void executeDenseTrajectory()
 		// if first point of dense trajectory is the point destination
 		// we teleport the player to that first point
 		// because it needs time for game to render all game objects, we let our program wait a little bit
-	if (_traj_idx == 0) 
-	{
-		// teleport the player
-		Entity e = PLAYER::PLAYER_PED_ID();
-		ENTITY::SET_ENTITY_COORDS_NO_OFFSET(e, _trajectory[0].player_coord.x, _trajectory[0].player_coord.y, _trajectory[0].player_coord.z, 0, 0, 1);
-		
-		WAIT(1000);
-
-		// set 6D pose for our own camera
-		updateCamera(_trajectory[_traj_idx].cam_coord.x, _trajectory[_traj_idx].cam_coord.y, _trajectory[_traj_idx].cam_coord.z,
-			_trajectory[_traj_idx].cam_rot.x, _trajectory[_traj_idx].cam_rot.y, _trajectory[_traj_idx].cam_rot.z);
-		
-		//_ofile.open(_dataset_dir + "/" + _6dpose_im_file_text);
-			
-		// if our own camera is not the rendering camera, we set it rendering
-		if (CAM::IS_CAM_RENDERING(_camera) == false)
-			activateCamera();
-		WAIT(100); // wait for the game to update its objects
-
-		// 获取文件名称
-		std::stringstream ss, ss1;
-		ss << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".txt";
-		ss1 << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".png";
-
-		std::string _anno_file_text_name = ss.str();
-		std::string im_name = _dataset_image_dir + "/" + ss1.str();
-
-
-		GDITakeScreenshots(im_name); // capture screen
-
-
-		// 打开文件
-		_ofile.open(_anno_file_text_dir + "/" + _anno_file_text_name);
-
-			
-		// store 6D pose
-		_ofile << im_name << " " << std::to_string(_trajectory[_traj_idx].cam_coord.x) << " " <<
-			std::to_string(_trajectory[_traj_idx].cam_coord.y) << " " << std::to_string(_trajectory[_traj_idx].cam_coord.z) << " " <<
-			std::to_string(_trajectory[_traj_idx].cam_rot.x) << " " << std::to_string(_trajectory[_traj_idx].cam_rot.y) << " " <<
-			std::to_string(_trajectory[_traj_idx].cam_rot.z) << std::endl;
-		_ofile.close();
-
-			
-		WAIT(100);
-	}
-	else
-	{
-
-		// Let the protagonist move to get better graphics for collecting large-scale dataset
-		Entity player_ped = PLAYER::PLAYER_PED_ID();
-		ENTITY::SET_ENTITY_COORDS_NO_OFFSET(player_ped, _trajectory[_traj_idx].player_coord.x, _trajectory[_traj_idx].player_coord.y, _trajectory[_traj_idx].player_coord.z, 0, 0, 1);
-
-		// set 6D pose for our own camera
-		updateCamera(_trajectory[_traj_idx].cam_coord.x, _trajectory[_traj_idx].cam_coord.y, _trajectory[_traj_idx].cam_coord.z,
-			_trajectory[_traj_idx].cam_rot.x, _trajectory[_traj_idx].cam_rot.y, _trajectory[_traj_idx].cam_rot.z);
-
-		Point cam;
-
-		cam.cam_coord = CAM::GET_GAMEPLAY_CAM_COORD();
-		cam.cam_rot = CAM::GET_GAMEPLAY_CAM_ROT(2);
-
-		WAIT(100);
-
-		// 获取文件名称
-		std::stringstream ss, ss1;
-		ss << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".txt";
-		ss1 << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".png";
-
-		std::string _anno_file_text_name = ss.str();
-		std::string im_name = _dataset_image_dir + "/" + ss1.str();
-			
-		// capture screen
-		GDITakeScreenshots(im_name); 
-
-			
-
-		// 打开文件
-		_ofile.open(_anno_file_text_dir + "/" + _anno_file_text_name);
-
-		for (int i = 0; i < count; ++i)
+		if (_traj_idx == 0)
 		{
-			Vector3 veh_coords = ENTITY::GET_ENTITY_COORDS(vehicles[i], TRUE);	// 获取车辆坐标
-			float veh2cam_distance = GAMEPLAY::GET_DISTANCE_BETWEEN_COORDS(
-				cam.cam_coord.x, cam.cam_coord.y, cam.cam_coord.z,
-				veh_coords.x, veh_coords.y, veh_coords.z, 1
-			);	// 计算车辆到相机之间的距离
+			// teleport the player
+			/*Entity e = PLAYER::PLAYER_PED_ID();*/
+			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(mainPlayer, _trajectory[0].player_coord.x, _trajectory[0].player_coord.y, _trajectory[0].player_coord.z, 0, 0, 1);
 
-			if (veh2cam_distance > maxDistance) { break; }	// 不考虑远处车辆
-			else
-			{
-				int veh_type = VEHICLE::GET_VEHICLE_CLASS(vehicles[i]);
+			WAIT(1000);
 
-				BOOL occluded = isOccluded(vehicles[i], cam.cam_coord, veh_coords);	// 获取遮挡信息
+			// set 6D pose for our own camera
+			updateCamera(_trajectory[_traj_idx].cam_coord.x, _trajectory[_traj_idx].cam_coord.y, _trajectory[_traj_idx].cam_coord.z,
+				_trajectory[_traj_idx].cam_rot.x, _trajectory[_traj_idx].cam_rot.y, _trajectory[_traj_idx].cam_rot.z);
 
-				// 获取2DBB
-				float xmin, ymin, xmax, ymax;
-				get_2DBB(vehicles[i], cam, &xmin, &ymin, &xmax, &ymax);
-				
+			//_ofile.open(_dataset_dir + "/" + _6dpose_im_file_text);
 
-				// store annotation
-				_ofile << vehicleType[veh_type] << " " << veh2cam_distance << " " << "truncated" << " " <<
-					occluded << " " << "alpha" << " " <<
-					xmin << " " << ymin << " " << xmax << " " << ymax << std::endl;
-			}
+			// if our own camera is not the rendering camera, we set it rendering
+			if (CAM::IS_CAM_RENDERING(_camera) == false)
+				activateCamera();
+			WAIT(1000); // wait for the game to update its objects
+
+			// 获取文件名称
+			std::stringstream ss, ss1;
+			ss << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".txt";
+			ss1 << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".png";
+
+			std::string _anno_file_text_name = ss.str();
+			std::string im_name = _dataset_image_dir + "/" + ss1.str();
 
 
+			GDITakeScreenshots(im_name); // capture screen
 
+
+			// 打开文件
+			_ofile.open(_anno_file_text_dir + "/" + _anno_file_text_name);
+
+
+			// store 6D pose
+			_ofile << im_name << " " << std::to_string(_trajectory[_traj_idx].cam_coord.x) << " " <<
+				std::to_string(_trajectory[_traj_idx].cam_coord.y) << " " << std::to_string(_trajectory[_traj_idx].cam_coord.z) << " " <<
+				std::to_string(_trajectory[_traj_idx].cam_rot.x) << " " << std::to_string(_trajectory[_traj_idx].cam_rot.y) << " " <<
+				std::to_string(_trajectory[_traj_idx].cam_rot.z) << std::endl;
+			_ofile.close();
+
+
+			WAIT(100);
 		}
-		// 释放存放车辆的数组
-		delete[] vehicles;
+		else
+		{
 
-		_ofile.close();
+			// Let the protagonist move to get better graphics for collecting large-scale dataset
+			/*Entity player_ped = PLAYER::PLAYER_PED_ID();*/
+			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(mainPlayer, _trajectory[_traj_idx].player_coord.x, _trajectory[_traj_idx].player_coord.y, _trajectory[_traj_idx].player_coord.z, 0, 0, 1);
 
-			
+			// set 6D pose for our own camera
+			updateCamera(_trajectory[_traj_idx].cam_coord.x, _trajectory[_traj_idx].cam_coord.y, _trajectory[_traj_idx].cam_coord.z,
+				_trajectory[_traj_idx].cam_rot.x, _trajectory[_traj_idx].cam_rot.y, _trajectory[_traj_idx].cam_rot.z);
 
-		WAIT(100);
-	}
+			Point cam;
+
+			cam.cam_coord = CAM::GET_CAM_COORD(_camera);
+			cam.cam_rot = CAM::GET_CAM_ROT(_camera, 2);
+
+			float f = 0.005;	// 修正系数，修正z方向的微小误差
+			cam.cam_coord.z *= (1 + f);
+
+			WAIT(200);
+
+			// 获取文件名称
+			std::stringstream ss, ss1;
+			ss << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".txt";
+			ss1 << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".png";
+
+			std::string _anno_file_text_name = ss.str();
+			std::string im_name = _dataset_image_dir + "/" + ss1.str();
+
+			// capture screen
+			GDITakeScreenshots(im_name);
+
+
+
+			// 打开文件
+			_ofile.open(_anno_file_text_dir + "/" + _anno_file_text_name);
+
+			for (int i = 0; i < count; ++i)
+			{
+				// 判断车辆是否在屏幕上，否 则跳过
+				if (!ENTITY::IS_ENTITY_ON_SCREEN(vehicles[i])) {
+					continue;
+				}
+
+				Vector3 veh_coords = ENTITY::GET_ENTITY_COORDS(vehicles[i], TRUE);	// 获取车辆坐标
+				float veh2cam_distance = GAMEPLAY::GET_DISTANCE_BETWEEN_COORDS(
+					cam.cam_coord.x, cam.cam_coord.y, cam.cam_coord.z,
+					veh_coords.x, veh_coords.y, veh_coords.z, 1
+				);	// 计算车辆到相机之间的距离
+
+				// 不考虑远处车辆
+				if (veh2cam_distance < maxDistance) {
+					int veh_type = VEHICLE::GET_VEHICLE_CLASS(vehicles[i]);
+
+					BOOL occluded = isOccluded(vehicles[i], cam.cam_coord, veh_coords);	// 获取遮挡信息
+
+					// 获取2DBB
+					float xmin, ymin, xmax, ymax;
+					get_2DBB(vehicles[i], cam, &xmin, &ymin, &xmax, &ymax);
+
+					if (xmin == -1 || ymin == -1) { break; }	// 2D坐标为-1时，说明物体被截断，目前暂不考虑
+
+
+					// store annotation
+					_ofile << vehicleType[veh_type] << " " << veh2cam_distance << " " << "truncated" << " " <<
+						occluded << " " << "alpha" << " " <<
+						xmin << " " << ymin << " " << xmax << " " << ymax << std::endl;
+				}
+
+
+
+			}
+			// 释放存放车辆的数组
+			delete[] vehicles;
+
+			_ofile.close();
+
+
+
+			WAIT(200);
+		}
 
 	_traj_idx++;
 }
@@ -775,13 +787,13 @@ BOOL isOccluded(Vehicle vehicle, Vector3 cam_coord, Vector3 veh_coord)
 	Entity entityHit1 = 0;
 
 	int ray_veh_occlusion = WORLDPROBE::_CAST_RAY_POINT_TO_POINT(
-		cam_coord.x, cam_coord.y, cam_coord.z, 
-		veh_coord.x, veh_coord.y, veh_coord.z, 
+		cam_coord.x, cam_coord.y, cam_coord.z,
+		veh_coord.x, veh_coord.y, veh_coord.z,
 		(~0 ^ (8 | 4)), vehicle, 7
 	);
-	
+
 	WORLDPROBE::_GET_RAYCAST_RESULT(ray_veh_occlusion, &occlusion_veh, &end_coords1, &surface_norm1, &entityHit1);
-	
+
 	return occlusion_veh;
 
 }
@@ -823,13 +835,81 @@ void get_2DBB(Vehicle vehicle, Point cam, float* _xmin, float* _ymin, float* _xm
 	BLL.z = position.z - dim.y * rightVector.z - dim.x * forwardVector.z - dim.z * upVector.z;
 
 	float xmin, ymin, xmax, ymax;
-	get_2D_from_3D(cam, FUR, &xmax, &ymax);
-	get_2D_from_3D(cam, BLL, &xmin, &ymin);
+
+	//get_2D_from_3D(cam, FUR, &xmin, &ymin);
+	//get_2D_from_3D(cam, BLL, &xmax, &ymax);
+
+	Vector3 edge[8];
+
+	edge[0] = BLL;
+	edge[4] = FUR;
+
+
+	edge[1].x = edge[0].x + 2 * dim.y * rightVector.x;
+	edge[1].y = edge[0].y + 2 * dim.y * rightVector.y;
+	edge[1].z = edge[0].z + 2 * dim.y * rightVector.z;
+
+	edge[2].x = edge[1].x + 2 * dim.z * upVector.x;
+	edge[2].y = edge[1].y + 2 * dim.z * upVector.y;
+	edge[2].z = edge[1].z + 2 * dim.z * upVector.z;
+
+	edge[3].x = edge[0].x + 2 * dim.z * upVector.x;
+	edge[3].y = edge[0].y + 2 * dim.z * upVector.y;
+	edge[3].z = edge[0].z + 2 * dim.z * upVector.z;
+
+	edge[5].x = edge[4].x - 2 * dim.y * rightVector.x;
+	edge[5].y = edge[4].y - 2 * dim.y * rightVector.y;
+	edge[5].z = edge[4].z - 2 * dim.y * rightVector.z;
+
+	edge[6].x = edge[5].x - 2 * dim.z * upVector.x;
+	edge[6].y = edge[5].y - 2 * dim.z * upVector.y;
+	edge[6].z = edge[5].z - 2 * dim.z * upVector.z;
+
+	edge[7].x = edge[4].x - 2 * dim.z * upVector.x;
+	edge[7].y = edge[4].y - 2 * dim.z * upVector.y;
+	edge[7].z = edge[4].z - 2 * dim.z * upVector.z;
+
+	Vector3 edge2D[8];
+	float x2D[8], y2D[8];
+
+	for (int i = 0; i < 8; ++i) {
+		GRAPHICS::GET_SCREEN_COORD_FROM_WORLD_COORD(edge[i].x, edge[i].y, edge[i].z, &edge2D[i].x, &edge2D[i].y);
+		edge2D[i].z = 0;
+		x2D[i] = edge2D[i].x;
+		y2D[i] = edge2D[i].y;
+
+	}
+
+	xmin = *std::min_element(x2D, x2D + 7);
+	ymin = *std::min_element(y2D, y2D + 7);
+
+	xmax = *std::max_element(x2D, x2D + 7);
+	ymax = *std::max_element(y2D, y2D + 7);
 
 	*_xmin = xmin * screenWidth;
 	*_ymin = ymin * screenHeight;
 	*_xmax = xmax * screenWidth;
 	*_ymax = ymax * screenHeight;
+
+
+
+	/*#ifdef DEBUG
+
+	GRAPHICS::DRAW_LINE(edge1.x, edge1.y, edge1.z, edge2.x, edge2.y, edge2.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge1.x, edge1.y, edge1.z, edge4.x, edge4.y, edge4.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge2.x, edge2.y, edge2.z, edge3.x, edge3.y, edge3.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge3.x, edge3.y, edge3.z, edge4.x, edge4.y, edge4.z, 0, 255, 0, 200);
+
+	GRAPHICS::DRAW_LINE(edge5.x, edge5.y, edge5.z, edge6.x, edge6.y, edge6.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge5.x, edge5.y, edge5.z, edge8.x, edge8.y, edge8.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge6.x, edge6.y, edge6.z, edge7.x, edge7.y, edge7.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge7.x, edge7.y, edge7.z, edge8.x, edge8.y, edge8.z, 0, 255, 0, 200);
+
+	GRAPHICS::DRAW_LINE(edge1.x, edge1.y, edge1.z, edge7.x, edge7.y, edge7.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge2.x, edge2.y, edge2.z, edge8.x, edge8.y, edge8.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge3.x, edge3.y, edge3.z, edge5.x, edge5.y, edge5.z, 0, 255, 0, 200);
+	GRAPHICS::DRAW_LINE(edge4.x, edge4.y, edge4.z, edge6.x, edge6.y, edge6.z, 0, 255, 0, 200);
+	#endif*/
 
 }
 
@@ -862,7 +942,7 @@ void get_2D_from_3D(Point cam, Vector3 v, float* x2d, float* y2d)
 	float sy = sin(cam_y_rad);
 	float sz = sin(cam_z_rad);
 
-	Vector3 d;
+	Vector3 d;	// 转换为相机坐标系
 	d.x = cy * (sz * y + cz * x) - sy * z;
 	d.y = sx * (cy * z + sy * (sz * y + cz * x)) + cx * (cz * y - sz * x);
 	d.z = cx * (cy * z + sy * (sz * y + cz * x)) - sx * (cz * y - sz * x);
@@ -908,22 +988,22 @@ void setParametersOfExecuteDenseTrajectory()
 	_DO_FOLLOW_DENSE_TRAJECTORY = true;
 
 	GDIInitScreenCapture(); // initialize screen capture object
-			
+
 }
 float computeDistanceXY(Vector3 a, Vector3 b)
 {
-	return sqrt( (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y) );
+	return sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
 
 void handleExecuteTrajectoryMenu(std::string menu_name)
 {
 	const int menu_item_number = 3;
-	
-	std::string menu_list[menu_item_number] = { "MOVE TO STARTING POINT", "EXECUTE SPARSE TRAJECTORY", 
+
+	std::string menu_list[menu_item_number] = { "MOVE TO STARTING POINT", "EXECUTE SPARSE TRAJECTORY",
 												"EXECUTE DENSE TRAJECTORY" };
 
 	DWORD wait_time = 150;
-	
+
 	while (true)
 	{
 		// timed menu draw, used for pause after active line switch
@@ -955,7 +1035,7 @@ void handleExecuteTrajectoryMenu(std::string menu_name)
 				moveToStartingPoint();
 				break;
 			case 1:
-				if (readyExecuteSparseTrajectory())	
+				if (readyExecuteSparseTrajectory())
 				{
 					setParametersOfExecuteSparseTrajectory(true);
 				}
@@ -1007,10 +1087,10 @@ void handleMainMenu()
 	std::string menu_list[menu_item_number] = { "CREATE TRAJECTORY", "EXECUTE TRAJECTORY" };
 
 	DWORD wait_time = 150;
-	
+
 	while (true)
 	{
-		
+
 		// timed menu draw, used for pause after active line switch
 		DWORD max_tick_count = GetTickCount() + wait_time;
 		do
@@ -1086,12 +1166,12 @@ void updateNotificationText()
 		UI::SET_TEXT_EDGE(1, 0, 0, 0, 205);
 		if (_notification_text_gxt_entry)
 		{
-			UI::_SET_TEXT_ENTRY((char *)_notification_text.c_str());
+			UI::_SET_TEXT_ENTRY((char*)_notification_text.c_str());
 		}
 		else
 		{
 			UI::_SET_TEXT_ENTRY("STRING");
-			UI::_ADD_TEXT_COMPONENT_STRING((char *)_notification_text.c_str());
+			UI::_ADD_TEXT_COMPONENT_STRING((char*)_notification_text.c_str());
 		}
 		UI::_DRAW_TEXT(0.5, 0.5);
 	}
@@ -1110,7 +1190,7 @@ bool isFileExist(std::string file_text)
 	return ifile.is_open();
 }
 
-bool getCoordsFromMarker(Vector3 &coords)
+bool getCoordsFromMarker(Vector3& coords)
 {
 	Entity e = PLAYER::PLAYER_PED_ID();
 	bool success = false;
@@ -1136,7 +1216,7 @@ void main()
 {
 
 	createCamera();
-	
+
 	while (true)
 	{
 
@@ -1160,7 +1240,7 @@ void main()
 		WAIT(0);
 
 	}
-	
+
 
 }
 

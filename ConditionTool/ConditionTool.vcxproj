@@ -77,7 +77,7 @@
       <AdditionalOptions>..\dependencies\lib\ScriptHookV.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y "D:\MyProject1\G2D-master\bin\G2D-Condition.asi" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V"</Command>
+      <Command>xcopy /Y "D:\MyProject1\myG2D\bin\G2D-Condition.asi" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
