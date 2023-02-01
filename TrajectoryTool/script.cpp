@@ -459,7 +459,7 @@ void moveToStartingPoint()
 			if (GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(coords.x, coords.y, groundCheckHeight[i], &coords.z, FALSE))
 			{
 				groundFound = true;
-				coords.z += 1.0;
+				coords.z += 3.0;
 				break;
 			}
 		}
@@ -615,6 +615,7 @@ void executeDenseTrajectory()
 
 	// 慢动作
 	GAMEPLAY::SET_TIME_SCALE(1.0f / timeFactor);
+	GAMEPLAY::SET_TIME_SCALE(0);
 
 	if (_trajectory.size() <= 1)
 	{
@@ -710,7 +711,7 @@ void executeDenseTrajectory()
 			cam.cam_coord = CAM::GET_CAM_COORD(_camera);
 			cam.cam_rot = CAM::GET_CAM_ROT(_camera, 2);
 
-			WAIT(200);
+			WAIT(1000);
 
 			// 获取文件名称
 			std::stringstream ss, ss1;
@@ -774,6 +775,11 @@ void executeDenseTrajectory()
 
 					world2cam(cam, veh_coords, &veh_coords_cam);
 
+					// 需要输出底面中心坐标，而非中心坐标
+					veh_coords_cam.x -= dim.x;
+					veh_coords_cam.y -= dim.y;
+					veh_coords_cam.z -= dim.z;
+
 					//// store annotation
 					//_ofile << vehicleType[veh_type] << " " << veh2cam_distance << " " << truncated_flag << " " <<
 					//	occluded << " " << "alpha" << " " <<
@@ -783,11 +789,10 @@ void executeDenseTrajectory()
 					_ofile << "Car" << " " << truncated_flag << " " <<
 						occluded << " " << alpha << " " <<
 						xmin << " " << ymin << " " << xmax << " " << ymax << " " <<
-						dim.x << " " << dim.y << " " << dim.z << " " <<
-						veh_coords_cam.x << " " << veh_coords_cam.y << " " << veh_coords_cam.z << " " << r_y << " " << std::endl;
+						2 * dim.x << " " << 2 * dim.y << " " << 2 * dim.z << " " <<
+						veh_coords_cam.x << " " << veh_coords_cam.y << " " << veh_coords_cam.z << " " << r_y << std::endl;
 
-					//store KITTI calib files
-					_ofile_calib << "P2:" << " " << 
+
 				}
 
 
@@ -797,11 +802,25 @@ void executeDenseTrajectory()
 			delete[] vehicles;
 
 			_ofile.close();
+
+			// get resolution
+			int screenWidth = _screen_capture_worker.nScreenWidth;
+			int screenHeight = _screen_capture_worker.nScreenHeight;
+			//store KITTI calib files
+			float f;
+			get_focal_length(screenHeight, &f);
+			float cu, cv;
+			cu = screenWidth / 2;
+			cv = screenHeight / 2;
+
+			_ofile_calib << "P2:" << " " <<
+				f << " " << 0 << " " << cu << " " << 0 << " " <<
+				0 << " " << f << " " << cv << " " << 0 << " " <<
+				0 << " " << 0 << " " << 1 << " " << 0 << std::endl;
+
 			_ofile_calib.close();
 
-
-
-			WAIT(200);
+			WAIT(1000);
 		}
 
 	_traj_idx++;
@@ -893,6 +912,7 @@ void get_2DBB(Vehicle vehicle, Point cam, float* _xmin, float* _ymin, float* _xm
 
 	for (int i = 0; i < 8; ++i) {
 		//get_2D_from_3D_1(edge[i], cam, &edge2D[i].x, &edge2D[i].y);
+		/*edge[i].z += dim.z;*/
 		get_2D_from_3D(cam, edge[i], &edge2D[i].x, &edge2D[i].y);
 		edge2D[i].z = 0;
 		x2D[i] = edge2D[i].x;
@@ -941,13 +961,20 @@ void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, f
 	Vector3 upVector, rightVector, forwardVector, position; //entity position
 	Vector3 dim;
 
-	float theta = atan(abs(coord_in_cam.x) / abs(coord_in_cam.z));
-
 	get_vehicle_values(vehicle, &upVector, &rightVector, &forwardVector, &position, &dim);
 
-	*r_y = atan(abs(forwardVector.z) / abs(forwardVector.x));
+	*r_y = atan2(forwardVector.z, forwardVector.x);
 
-	*alpha = *r_y - theta;
+	float theta = atan2(coord_in_cam.z, coord_in_cam.x);
+
+	*alpha = *r_y + theta + 1.5 * float(PI);
+
+	if (*alpha < -float(PI)) {
+		*alpha += 2 * float(PI);
+	}
+	else if (*alpha > float(PI)) {
+		*alpha -= 2 * float(PI);
+	}
 }
 
 void get_vehicle_values(Vehicle vehicle, Vector3* upVector, Vector3* rightVector, Vector3* forwardVector, Vector3* position, Vector3* dim) {
@@ -959,6 +986,8 @@ void get_vehicle_values(Vehicle vehicle, Vector3* upVector, Vector3* rightVector
 }
 
 void get_vehicle_dim(Vehicle vehicle, Vector3* dim) {
+
+	// dim是长宽高的一半
 
 	Vector3 min, max;
 	Hash model; //model hash
@@ -1001,7 +1030,7 @@ void world2cam(Point cam, Vector3 v, Vector3* d) {
 
 }
 
-void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y2D_pixel) {
+void get_R_matrix(Point cam, float R[9]) {
 
 	// convert to rad
 	float cam_x_rad = cam.cam_rot.x * (float)PI / 180.0f;
@@ -1019,17 +1048,30 @@ void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y
 	float cz = cos(cam_z_rad);
 
 	// R matrix
-	float r11, r12, r13, r21, r22, r23, r31, r32, r33;
+	R[0] = cz * cy;
+	R[1] = sz * cy;
+	R[2] = -sy;
+	R[3] = cz * sx * sy - sz * cx;
+	R[4] = sz * sx * sy + cz * cx;
+	R[5] = sx * cy;
+	R[6] = cz * cx * sy + sz * sx;
+	R[7] = sz * cx * sy - cz * sx;
+	R[8] = cx * cy;
 
-	r11 = cz * cy;
-	r12 = sz * cy;
-	r13 = -sy;
-	r21 = cz * sx * sy - sz * cx;
-	r22 = sz * sx * sy + cz * cx;
-	r23 = sx * cy;
-	r31 = cz * cx * sy + sz * sx;
-	r32 = sz * cx * sy - cz * sx;
-	r33 = cx * cy;
+}
+
+void get_focal_length(int screenHeight, float* f) {
+	// calculate focal length
+	float CAM_FOV = CAM::GET_GAMEPLAY_CAM_FOV();
+	float fov_rad = CAM_FOV * (float)PI / 180;
+	*f = (screenHeight / 2.0f) * cos(fov_rad / 2.0f) / sin(fov_rad / 2.0f);
+}
+
+void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y2D_pixel) {
+
+	// R matrix
+	float R[9];
+	get_R_matrix(cam, R);	
 
 	float x, y, z;	// temp, easy to write
 
@@ -1043,18 +1085,22 @@ void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y
 	//t2 = world_coord.y - cam.cam_coord.y;
 	//t3 = world_coord.z - cam.cam_coord.z;
 
-	t1 = world_coord.x - cam.cam_coord.x;
-	t2 = world_coord.y - cam.cam_coord.y;
-	t3 = world_coord.z - cam.cam_coord.z;
+	//t1 = world_coord.x - cam.cam_coord.x;
+	//t2 = world_coord.y - cam.cam_coord.y;
+	//t3 = world_coord.z - cam.cam_coord.z;
+
+	t1 = 0;
+	t2 = 0;
+	t3 = 0;
 
 
 	Vector3 cam_coord;
 
-	cam_coord.x = r11 * x + r12 * y + r13 * z + t1;
-	cam_coord.y = r21 * x + r22 * y + r23 * z + t2;
-	cam_coord.z = r31 * x + r32 * y + r33 * z + t3;
-
-
+	cam_coord.x = R[0] * x + R[1] * y + R[2] * z + t1;
+	cam_coord.y = R[3] * x + R[4] * y + R[5] * z + t2;
+	cam_coord.z = R[6] * x + R[7] * y + R[8] * z + t3;
+	
+	
 	// image coord
 	float x2D, y2D;
 
@@ -1067,9 +1113,8 @@ void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y
 	int screenHeight = _screen_capture_worker.nScreenHeight;
 
 	// calculate focal length
-	float CAM_FOV = CAM::GET_GAMEPLAY_CAM_FOV();
-	float fov_rad = CAM_FOV * (float)PI / 180;
-	float f = (screenHeight / 2.0f) * cos(fov_rad / 2.0f) / sin(fov_rad / 2.0f);
+	float f;
+	get_focal_length(screenHeight, &f);
 
 	x2D = f * x / z;
 	y2D = f * y / z;
@@ -1085,11 +1130,8 @@ void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y
 	*y2D_pixel = y2D + v0 * screenHeight;
 
 
-
-
-
-
 }
+
 
 void get_2D_from_3D(Point cam, Vector3 v, float* x2d, float* y2d)
 {
