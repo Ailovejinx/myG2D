@@ -25,7 +25,7 @@
 #define GTA_MAP 0
 #define PROTAGONIST 1
 
-#define CAM_FOV 50
+//#define CAM_FOV 50
 
 
 /*********************************************************************/
@@ -121,3 +121,9 @@ void ScriptMain(); // Main functions
 BOOL isOccluded(Vehicle vehicle, Vector3 cam_coord, Vector3 veh_coord); // 判断是否存在遮挡
 void get_2DBB(Vehicle vehicle, Point cam, float* _xmin, float* _ymin, float* _xmax, float* _ymax); // 生成2DBB
 void get_2D_from_3D(Point cam, Vector3 v, float* x2d, float* y2d);	//3D到2D图像上的坐标转换
+
+void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y2D_pixel);
+void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, float* r_y);
+void get_vehicle_values(Vehicle vehicle, Vector3* upVector, Vector3* rightVector, Vector3* forwardVector, Vector3* position, Vector3* dim);
+void get_vehicle_dim(Vehicle vehicle, Vector3* dim);
+void world2cam(Point cam, Vector3 v, Vector3* d);
