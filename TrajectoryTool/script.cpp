@@ -963,7 +963,10 @@ void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, f
 
 	get_vehicle_values(vehicle, &upVector, &rightVector, &forwardVector, &position, &dim);
 
-	*r_y = atan2(forwardVector.z, forwardVector.x);
+	// 2023.02.03 forwardVector(x, y, z) is in world coords, so r_y should be calculated as y/z, not z/x.
+	// if calculated as z/x, we should convert (x, y ,z) to (x', y', z') in camera coords.
+
+	*r_y = atan2(forwardVector.y, forwardVector.x);
 
 	float theta = atan2(coord_in_cam.z, coord_in_cam.x);
 
@@ -1048,14 +1051,16 @@ void get_R_matrix(Point cam, float R[9]) {
 	float cz = cos(cam_z_rad);
 
 	// R matrix
+	// 2023.02.03 Correct the direction of rotation Angle
+
 	R[0] = cz * cy;
-	R[1] = sz * cy;
-	R[2] = -sy;
-	R[3] = cz * sx * sy - sz * cx;
-	R[4] = sz * sx * sy + cz * cx;
-	R[5] = sx * cy;
-	R[6] = cz * cx * sy + sz * sx;
-	R[7] = sz * cx * sy - cz * sx;
+	R[1] = -sz * cy;
+	R[2] = sy;
+	R[3] = cz * sx * sy + sz * cx;
+	R[4] = -sz * sx * sy + cz * cx;
+	R[5] = -sx * cy;
+	R[6] = -cz * cx * sy + sz * sx;
+	R[7] = sz * cx * sy + cz * sx;
 	R[8] = cx * cy;
 
 }
