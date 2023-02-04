@@ -95,7 +95,7 @@
       <AdditionalOptions>..\dependencies\lib\ScriptHookV.lib %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y "D:\MyProject1\myG2D\bin\G2D-Trajectory.asi" "D:\SteamLibrary\steamapps\common\Grand Theft Auto V"</Command>
+      <Command>xcopy /Y "D:\MyProject1\myG2D\bin\G2D-Trajectory.asi" "D:\Games\Grand Theft Auto V"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

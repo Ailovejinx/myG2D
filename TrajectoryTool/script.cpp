@@ -615,7 +615,7 @@ void executeDenseTrajectory()
 
 	// 慢动作
 	GAMEPLAY::SET_TIME_SCALE(1.0f / timeFactor);
-	GAMEPLAY::SET_TIME_SCALE(0);
+	//GAMEPLAY::SET_TIME_SCALE(0);
 
 	if (_trajectory.size() <= 1)
 	{
@@ -693,7 +693,7 @@ void executeDenseTrajectory()
 			_ofile.close();
 
 
-			WAIT(100);
+			WAIT(200);
 		}
 		else
 		{
@@ -711,7 +711,7 @@ void executeDenseTrajectory()
 			cam.cam_coord = CAM::GET_CAM_COORD(_camera);
 			cam.cam_rot = CAM::GET_CAM_ROT(_camera, 2);
 
-			WAIT(1000);
+			WAIT(200);
 
 			// 获取文件名称
 			std::stringstream ss, ss1;
@@ -775,10 +775,10 @@ void executeDenseTrajectory()
 
 					world2cam(cam, veh_coords, &veh_coords_cam);
 
-					// 需要输出底面中心坐标，而非中心坐标
-					veh_coords_cam.x -= dim.x;
-					veh_coords_cam.y -= dim.y;
-					veh_coords_cam.z -= dim.z;
+					//// 需要输出底面中心坐标，而非中心坐标
+					//veh_coords_cam.x -= dim.x;
+					//veh_coords_cam.y -= dim.y;
+					//veh_coords_cam.z -= dim.z;
 
 					//// store annotation
 					//_ofile << vehicleType[veh_type] << " " << veh2cam_distance << " " << truncated_flag << " " <<
@@ -789,8 +789,8 @@ void executeDenseTrajectory()
 					_ofile << "Car" << " " << truncated_flag << " " <<
 						occluded << " " << alpha << " " <<
 						xmin << " " << ymin << " " << xmax << " " << ymax << " " <<
-						2 * dim.x << " " << 2 * dim.y << " " << 2 * dim.z << " " <<
-						veh_coords_cam.x << " " << veh_coords_cam.y << " " << veh_coords_cam.z << " " << r_y << std::endl;
+						2 * dim.z << " " << 2 * dim.x << " " << 2 * dim.y << " " <<
+						veh_coords_cam.x << " " << -veh_coords_cam.z << " " << veh_coords_cam.y << " " << r_y << std::endl;
 
 
 				}
@@ -820,7 +820,7 @@ void executeDenseTrajectory()
 
 			_ofile_calib.close();
 
-			WAIT(1000);
+			WAIT(200);
 		}
 
 	_traj_idx++;
