@@ -128,4 +128,6 @@ void get_vehicle_values(Vehicle vehicle, Vector3* upVector, Vector3* rightVector
 void get_vehicle_dim(Vehicle vehicle, Vector3* dim);
 void world2cam(Point cam, Vector3 v, Vector3* d);
 void get_R_matrix(Point cam, float R[9]);
-void get_focal_length(int screenHeight, float* f);
+void get_focal_length(int screenWidth, int screenHeight, float* fx, float* fy);
+
+void angle_check(float* angle);
