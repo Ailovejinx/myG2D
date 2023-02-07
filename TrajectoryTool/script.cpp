@@ -18,7 +18,7 @@
 /*********************************************************************/
 
 // 时间因子，控制慢镜头录制
-float timeFactor = 8.0;
+float timeFactor = 12.0;
 // 最大距离，远处的车辆没有参考意义
 float maxDistance = 100.0;
 
@@ -615,7 +615,7 @@ void executeDenseTrajectory()
 
 	// 慢动作
 	GAMEPLAY::SET_TIME_SCALE(1.0f / timeFactor);
-	GAMEPLAY::SET_TIME_SCALE(0);
+	//GAMEPLAY::SET_TIME_SCALE(0);
 
 	if (_trajectory.size() <= 1)
 	{
@@ -784,16 +784,16 @@ void executeDenseTrajectory()
 					//	xmin << " " << ymin << " " << xmax << " " << ymax << std::endl;
 
 					// store as KITTI form
-					_ofile << "Car" << " " << truncated_flag << " " <<
-						occluded << " " << alpha << " " <<
-						xmin << " " << ymin << " " << xmax << " " << ymax << " " <<
-						2 * dim.z << " " << 2 * dim.x << " " << 2 * dim.y << " " <<
-						veh_coords_cam.x << " " << -veh_coords_cam.z << " " << veh_coords_cam.y << " " << r_y << std::endl;
-
-
+					std::string type = get_type(vehicleType[veh_type]);
+					if (type != "0") {
+						_ofile << type << " " << truncated_flag << " " <<
+							occluded << " " << alpha << " " <<
+							xmin << " " << ymin << " " << xmax << " " << ymax << " " <<
+							2 * dim.z << " " << 2 * dim.x << " " << 2 * dim.y << " " <<
+							veh_coords_cam.x << " " << -veh_coords_cam.z << " " << veh_coords_cam.y << " " << r_y << std::endl;
+					}
+					
 				}
-
-
 
 			}
 			// 释放存放车辆的数组
@@ -819,10 +819,32 @@ void executeDenseTrajectory()
 
 			_ofile_calib.close();
 
-			WAIT(2000);
+			WAIT(200);
 		}
 
 	_traj_idx++;
+}
+std::string get_type(std::string vt) {
+
+	if (vt == "Compacts" || vt == "Sedans" || vt == "Sedans" || vt == "SUVs" || vt == "Coupes" || vt == "Muscle" || vt == "Sports_Classics" || vt == "Sports" || vt == "Super") {
+		return "Car";
+	}
+	else if (vt == "Motorcycles" || vt == "Cycles") {
+		return "Cyclist";
+	}
+	else if (vt == "Industrial" || vt == "Utility" || vt == "Commercial") {
+		return "Trunk";
+	}
+	else if (vt == "Off-road" || vt == "Vans") {
+		return "Van";
+	}
+	else if (vt == "Service" || vt == "Emergency") {
+		return "MISC";
+	}
+	else if (vt == "Boats" || vt == "Helicopters" || vt == "Planes" || vt == "Military" || vt == "Trains" || vt == "Open Wheel") {
+		return "0";
+	}
+
 }
 
 BOOL isOccluded(Vehicle vehicle, Vector3 cam_coord, Vector3 veh_coord)
@@ -988,21 +1010,27 @@ void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, f
 	// theta
 	float theta = atan(coord_in_cam.x / coord_in_cam.y);
 
-	// 4 cases
-	if (*r_y >= 0 && theta >= 0) {
-		*alpha = *r_y - theta;
-	}
-	else if (*r_y >= 0 && theta < 0) {
-		*alpha = *r_y - theta;
-		if (*alpha > float(PI)) { *alpha = 2 * float(PI) - *alpha; }
-	}
-	else if (*r_y < 0 && theta >= 0) {
-		*alpha = *r_y - theta;
-		if (*alpha < -float(PI)) { *alpha = 2 * float(PI) + *alpha; }
-	}
-	else if (*r_y < 0 && theta < 0) {
-		*alpha = -*r_y + theta;
-	}
+	//// 4 cases
+	//if (*r_y >= 0 && theta >= 0) {
+	//	*alpha = *r_y - theta;
+	//}
+	//else if (*r_y >= 0 && theta < 0) {
+	//	*alpha = *r_y - theta;
+	//	if (*alpha > float(PI)) { *alpha = 2 * float(PI) - *alpha; }
+	//}
+	//else if (*r_y < 0 && theta >= 0) {
+	//	*alpha = *r_y - theta;
+	//	if (*alpha < -float(PI)) { *alpha = 2 * float(PI) + *alpha; }
+	//}
+	//else if (*r_y < 0 && theta < 0) {
+	//	*alpha = *r_y - theta;
+	//}
+
+	// alpha
+	*alpha = *r_y - theta;
+
+	if (*alpha > float(PI)) { *alpha = 2 * float(PI) - *alpha; }
+	else if (*alpha < -float(PI)) { *alpha = 2 * float(PI) + *alpha; }
 
 }
 
