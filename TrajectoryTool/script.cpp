@@ -667,30 +667,30 @@ void executeDenseTrajectory()
 			// if our own camera is not the rendering camera, we set it rendering
 			if (CAM::IS_CAM_RENDERING(_camera) == false)
 				activateCamera();
-			WAIT(1000); // wait for the game to update its objects
+			//WAIT(1000); // wait for the game to update its objects
 
-			// 获取文件名称
-			std::stringstream ss, ss1;
-			ss << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".txt";
-			ss1 << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".png";
+			//// 获取文件名称
+			//std::stringstream ss, ss1;
+			//ss << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".txt";
+			//ss1 << std::setfill('0') << std::setw(6) << std::to_string(_anno_file_text_id) << ".png";
 
-			std::string _anno_file_text_name = ss.str();
-			std::string im_name = _dataset_image_dir + "/" + ss1.str();
-
-
-			GDITakeScreenshots(im_name); // capture screen
+			//std::string _anno_file_text_name = ss.str();
+			//std::string im_name = _dataset_image_dir + "/" + ss1.str();
 
 
-			// 打开文件
-			_ofile.open(_anno_file_text_dir + "/" + _anno_file_text_name);
+			//GDITakeScreenshots(im_name); // capture screen
 
 
-			// store 6D pose
-			_ofile << im_name << " " << std::to_string(_trajectory[_traj_idx].cam_coord.x) << " " <<
-				std::to_string(_trajectory[_traj_idx].cam_coord.y) << " " << std::to_string(_trajectory[_traj_idx].cam_coord.z) << " " <<
-				std::to_string(_trajectory[_traj_idx].cam_rot.x) << " " << std::to_string(_trajectory[_traj_idx].cam_rot.y) << " " <<
-				std::to_string(_trajectory[_traj_idx].cam_rot.z) << std::endl;
-			_ofile.close();
+			//// 打开文件
+			//_ofile.open(_anno_file_text_dir + "/" + _anno_file_text_name);
+
+
+			//// store 6D pose
+			//_ofile << im_name << " " << std::to_string(_trajectory[_traj_idx].cam_coord.x) << " " <<
+			//	std::to_string(_trajectory[_traj_idx].cam_coord.y) << " " << std::to_string(_trajectory[_traj_idx].cam_coord.z) << " " <<
+			//	std::to_string(_trajectory[_traj_idx].cam_rot.x) << " " << std::to_string(_trajectory[_traj_idx].cam_rot.y) << " " <<
+			//	std::to_string(_trajectory[_traj_idx].cam_rot.z) << std::endl;
+			//_ofile.close();
 
 
 			WAIT(2000);
@@ -702,7 +702,7 @@ void executeDenseTrajectory()
 			/*Entity player_ped = PLAYER::PLAYER_PED_ID();*/
 			ENTITY::SET_ENTITY_COORDS_NO_OFFSET(mainPlayer, _trajectory[_traj_idx].player_coord.x, _trajectory[_traj_idx].player_coord.y, _trajectory[_traj_idx].player_coord.z, 0, 0, 1);
 
-			// set 6D pose for our own camera
+			// set camera
 			updateCamera(_trajectory[_traj_idx].cam_coord.x, _trajectory[_traj_idx].cam_coord.y, _trajectory[_traj_idx].cam_coord.z,
 				_trajectory[_traj_idx].cam_rot.x, _trajectory[_traj_idx].cam_rot.y, _trajectory[_traj_idx].cam_rot.z);
 
@@ -710,8 +710,6 @@ void executeDenseTrajectory()
 
 			cam.cam_coord = CAM::GET_CAM_COORD(_camera);
 			cam.cam_rot = CAM::GET_CAM_ROT(_camera, 2);
-
-			WAIT(2000);
 
 			// 获取文件名称
 			std::stringstream ss, ss1;
@@ -973,18 +971,10 @@ void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, f
 	// 2023.02.03 forwardVector(x, y, z) is in world coords, so r_y should be calculated as y/z, not z/x.
 	// if calculated as z/x, we should convert (x, y ,z) to (x', y', z') in camera coords.
 
+	// r_y
 	*r_y = atan2(tempVector.x, tempVector.y);
 
 	angle_check(r_y);
-
-	float theta = atan2(coord_in_cam.y, coord_in_cam.x);
-
-	*alpha = *r_y - theta;
-
-	angle_check(alpha);
-
-	*r_y = -*r_y;
-	*alpha = -*alpha;
 
 	if (*r_y >= 0) {
 		*r_y = float(PI) - *r_y;
@@ -992,6 +982,28 @@ void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, f
 	else {
 		*r_y = -(float(PI) + *r_y);
 	}
+
+	*r_y = -*r_y;
+
+	// theta
+	float theta = atan(coord_in_cam.x / coord_in_cam.y);
+
+	// 4 cases
+	if (*r_y >= 0 && theta >= 0) {
+		*alpha = *r_y - theta;
+	}
+	else if (*r_y >= 0 && theta < 0) {
+		*alpha = *r_y - theta;
+		if (*alpha > float(PI)) { *alpha = 2 * float(PI) - *alpha; }
+	}
+	else if (*r_y < 0 && theta >= 0) {
+		*alpha = *r_y - theta;
+		if (*alpha < -float(PI)) { *alpha = 2 * float(PI) + *alpha; }
+	}
+	else if (*r_y < 0 && theta < 0) {
+		*alpha = -*r_y + theta;
+	}
+
 }
 
 void angle_check(float* angle) {
