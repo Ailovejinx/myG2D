@@ -212,7 +212,7 @@ bool GDITakeScreenshots(std::string file_name)
 		_screen_capture_worker.hDesktopDC, 0, 0, SRCCOPY | CAPTUREBLT);
 	CImage image;
 	image.Attach(_screen_capture_worker.hCaptureBitmap);
-	image.Save(file_name.c_str(), Gdiplus::ImageFormatJPEG);
+	image.Save(file_name.c_str(), Gdiplus::ImageFormatPNG);
 
 	return true;
 }
@@ -833,13 +833,13 @@ std::string get_type(std::string vt) {
 		return "Cyclist";
 	}
 	else if (vt == "Industrial" || vt == "Utility" || vt == "Commercial") {
-		return "Trunk";
+		return "Truck";
 	}
 	else if (vt == "Off-road" || vt == "Vans") {
 		return "Van";
 	}
 	else if (vt == "Service" || vt == "Emergency") {
-		return "MISC";
+		return "Misc";
 	}
 	else if (vt == "Boats" || vt == "Helicopters" || vt == "Planes" || vt == "Military" || vt == "Trains" || vt == "Open Wheel") {
 		return "0";
