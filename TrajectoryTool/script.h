@@ -89,7 +89,7 @@ bool readyExecuteSparseTrajectory(); // check if we are ready to execute sparse 
 bool readyExecuteDenseTrajectory(); // check if we are ready to execute dense trajectory
 void moveToStartingPoint(); // move the player to the first point within the sparse trajectory
 void resetExecuteTrajectory(); // reset all parameters relating to functions of execute sparse/dense trajectory
-void executeDenseTrajectory(); // simultaneously execute dense trajectory and collect images
+void executeDenseTrajectory(Player mainPlayer, float capturePeriod, float* lastCaptureTime); // simultaneously execute dense trajectory and collect images
 void executeSparseTrajectory(); // execute sparse trajectory with/without creating dense trajectory
 void setParametersOfExecuteSparseTrajectory(bool create_dense_trajectory); // set parameters for functions of execute sparse trajectory
 void setParametersOfExecuteDenseTrajectory(); // set parameters for functions of execute dense trajectory

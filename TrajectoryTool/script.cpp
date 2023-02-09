@@ -11,17 +11,18 @@
 #include <cmath>
 
 #define DEBUG TRUE
+// 时间因子，控制慢镜头录制
+// 改变TIME_FACTOR，不会影响采样出来的序列的FPS
+#define TIME_FACTOR 48
+#define FPS 60
+
+// 最大距离，远处的车辆没有参考意义
+#define MAX_DISTANCE 100.0
 
 
 /*********************************************************************/
 /******************************** VARIABLES **************************/
 /*********************************************************************/
-
-// 时间因子，控制慢镜头录制
-float timeFactor = 12.0;
-// 最大距离，远处的车辆没有参考意义
-float maxDistance = 100.0;
-
 
 // notification text
 std::string _notification_text;
@@ -603,18 +604,21 @@ void executeSparseTrajectory()
 }
 
 // 生成带标注的数据集
-void executeDenseTrajectory()
+void executeDenseTrajectory(Player mainPlayer, float capturePeriod, std::clock_t* lastCaptureTime)
 {
-	Player mainPlayer = PLAYER::PLAYER_ID();
-	// 将玩家设为无敌且被所有人忽略，防止被车撞后采集终止
-	PLAYER::SET_PLAYER_INVINCIBLE(mainPlayer, TRUE);
-	PLAYER::SET_EVERYONE_IGNORE_PLAYER(mainPlayer, TRUE);
-	PLAYER::SET_POLICE_IGNORE_PLAYER(mainPlayer, TRUE);
-	// 清除悬赏等级
-	PLAYER::CLEAR_PLAYER_WANTED_LEVEL(mainPlayer);
+
+	// check if capture is in a purposed frequency
+	float delay = ((float)(std::clock() - *lastCaptureTime)) / CLOCKS_PER_SEC;
+	if (delay >= capturePeriod) {
+		*lastCaptureTime = std::clock();
+	}
+	else {
+		return;
+	}
+	
 
 	// 慢动作
-	GAMEPLAY::SET_TIME_SCALE(1.0f / timeFactor);
+	GAMEPLAY::SET_TIME_SCALE(1.0f / TIME_FACTOR);
 	//GAMEPLAY::SET_TIME_SCALE(0);
 
 	if (_trajectory.size() <= 1)
@@ -726,7 +730,7 @@ void executeDenseTrajectory()
 			// 打开文件
 			_ofile.open(_anno_file_text_dir + "/" + _anno_file_text_name);
 			_ofile_calib.open(_calib_file_dir + "/" + _anno_file_text_name);
-			
+
 
 			for (int i = 0; i < count; ++i)
 			{
@@ -742,7 +746,7 @@ void executeDenseTrajectory()
 				);	// 计算车辆到相机之间的距离
 
 				// 不考虑远处车辆
-				if (veh2cam_distance < maxDistance) {
+				if (veh2cam_distance < MAX_DISTANCE) {
 					int veh_type = VEHICLE::GET_VEHICLE_CLASS(vehicles[i]);
 
 					BOOL occluded = isOccluded(vehicles[i], cam.cam_coord, veh_coords);	// 获取遮挡信息
@@ -792,7 +796,7 @@ void executeDenseTrajectory()
 							2 * dim.z << " " << 2 * dim.x << " " << 2 * dim.y << " " <<
 							veh_coords_cam.x << " " << -veh_coords_cam.z << " " << veh_coords_cam.y << " " << r_y << std::endl;
 					}
-					
+
 				}
 
 			}
@@ -819,11 +823,12 @@ void executeDenseTrajectory()
 
 			_ofile_calib.close();
 
-			WAIT(200);
+			//WAIT(200);
 		}
 
 	_traj_idx++;
 }
+
 std::string get_type(std::string vt) {
 
 	if (vt == "Compacts" || vt == "Sedans" || vt == "Sedans" || vt == "SUVs" || vt == "Coupes" || vt == "Muscle" || vt == "Sports_Classics" || vt == "Sports" || vt == "Super") {
@@ -888,11 +893,14 @@ void get_2DBB(Vehicle vehicle, Point cam, float* _xmin, float* _ymin, float* _xm
 	//calculate point FUR and BLL from the center coord
 	FUR.x = position.x + dim.y * rightVector.x + dim.x * forwardVector.x + dim.z * upVector.x;
 	FUR.y = position.y + dim.y * rightVector.y + dim.x * forwardVector.y + dim.z * upVector.y;
-	FUR.z = position.z + dim.y * rightVector.z + dim.x * forwardVector.z + dim.z * upVector.z;
+	//FUR.z = position.z + dim.y * rightVector.z + dim.x * forwardVector.z + dim.z * upVector.z;
+	GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(FUR.x, FUR.y, 1000.0, &(FUR.z), 0);
+	FUR.z += 2 * dim.z;
 
 	BLL.x = position.x - dim.y * rightVector.x - dim.x * forwardVector.x - dim.z * upVector.x;
 	BLL.y = position.y - dim.y * rightVector.y - dim.x * forwardVector.y - dim.z * upVector.y;
-	BLL.z = position.z - dim.y * rightVector.z - dim.x * forwardVector.z - dim.z * upVector.z;
+	//BLL.z = position.z - dim.y * rightVector.z - dim.x * forwardVector.z - dim.z * upVector.z;
+	GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(BLL.x, BLL.y, 1000.0, &(BLL.z), 0);
 
 	//get_2D_from_3D(cam, FUR, &xmin, &ymin);
 	//get_2D_from_3D(cam, BLL, &xmax, &ymax);
@@ -1027,7 +1035,7 @@ void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, f
 	//}
 
 	// alpha
-	*alpha = *r_y - theta;
+	* alpha = *r_y - theta;
 
 	if (*alpha > float(PI)) { *alpha = 2 * float(PI) - *alpha; }
 	else if (*alpha < -float(PI)) { *alpha = 2 * float(PI) + *alpha; }
@@ -1043,7 +1051,7 @@ void angle_check(float* angle) {
 	else if (*angle > float(PI)) {
 		*angle = *angle - 2.0f * float(PI);
 	}
-	
+
 }
 
 void get_vehicle_values(Vehicle vehicle, Vector3* upVector, Vector3* rightVector, Vector3* forwardVector, Vector3* position, Vector3* dim) {
@@ -1143,7 +1151,7 @@ void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y
 
 	// R matrix
 	float R[9];
-	get_R_matrix(cam, R);	
+	get_R_matrix(cam, R);
 
 	float x, y, z;	// temp, easy to write
 
@@ -1171,8 +1179,8 @@ void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y
 	cam_coord.x = R[0] * x + R[1] * y + R[2] * z + t1;
 	cam_coord.y = R[3] * x + R[4] * y + R[5] * z + t2;
 	cam_coord.z = R[6] * x + R[7] * y + R[8] * z + t3;
-	
-	
+
+
 	// image coord
 	float x2D, y2D;
 
@@ -1486,6 +1494,20 @@ void main()
 
 	createCamera();
 
+	Player mainPlayer = PLAYER::PLAYER_ID();
+	// 将玩家设为无敌且被所有人忽略，防止被车撞后采集终止
+	PLAYER::SET_PLAYER_INVINCIBLE(mainPlayer, TRUE);
+	PLAYER::SET_EVERYONE_IGNORE_PLAYER(mainPlayer, TRUE);
+	PLAYER::SET_POLICE_IGNORE_PLAYER(mainPlayer, TRUE);
+	// 清除悬赏等级
+	PLAYER::CLEAR_PLAYER_WANTED_LEVEL(mainPlayer);
+
+	// capture frequency/period
+	// maybe useless
+	int captureFreq = (int)(FPS / TIME_FACTOR);
+	float capturePeriod = 1.0f / captureFreq;
+	std::clock_t lastCaptureTime = std::clock();
+
 	while (true)
 	{
 
@@ -1502,7 +1524,8 @@ void main()
 		else
 			if (_DO_FOLLOW_DENSE_TRAJECTORY)
 			{
-				executeDenseTrajectory();
+				
+				executeDenseTrajectory(mainPlayer, capturePeriod, &lastCaptureTime);
 			}
 
 		updateFeatures();
