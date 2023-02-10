@@ -13,7 +13,7 @@
 #define DEBUG TRUE
 // 时间因子，控制慢镜头录制
 // 改变TIME_FACTOR，不会影响采样出来的序列的FPS
-#define TIME_FACTOR 48
+#define TIME_FACTOR 24
 #define FPS 60
 
 // 最大距离，远处的车辆没有参考意义
@@ -49,16 +49,16 @@ Cam _camera; // Our owned camera used for executing dense trajectory and collect
 int _order_rot = 2; // rotation order
 
 // The output file names
-std::string _sparse_trajectory_file_text = "trajectory_sparse.txt";
+std::string _sparse_trajectory_file_text = "1000/trajectory_sparse.txt";
 //std::string _vertex_file_text = "vertex.txt";
-std::string _vertex_file_text = "trajectory_sparse.txt";	// 最后用到的是trajectory_sparse.txt，方便起见直接生成之，即省去自定义轨迹序列这一步
-std::string _dense_trajectory_file_text = "trajectory_dense.txt";
+std::string _vertex_file_text = "1000/trajectory_sparse.txt";	// 最后用到的是trajectory_sparse.txt，方便起见直接生成之，即省去自定义轨迹序列这一步
+std::string _dense_trajectory_file_text = "1000/trajectory_dense.txt";
 std::string _dataset_dir = "dataset";
-std::string _dataset_image_dir = _dataset_dir + "/" + "image_2";
-std::string _6dpose_im_file_text = "6dpose_list.txt";	// 输出的标注文件
-std::string _anno_file_text_dir = _dataset_dir + "/" + "label_2";	// label输出路径
+std::string _dataset_image_dir = _dataset_dir + "/" + "image_2/1000";
+//std::string _6dpose_im_file_text = "6dpose_list.txt";	// 输出的标注文件
+std::string _anno_file_text_dir = _dataset_dir + "/" + "label_2/1000";	// label输出路径
 std::int32_t _anno_file_text_id = 0;	// 初始化label文件的ID，从000000.txt开始
-std::string _calib_file_dir = _dataset_dir + "/" + "calib";    // 输出的相机标定文件
+std::string _calib_file_dir = _dataset_dir + "/" + "calib/1000";    // calib输出路径
 
 std::ofstream _ofile; // stream to write output files
 std::ofstream _ofile_calib; // stream to write camera calib files
@@ -775,12 +775,13 @@ void executeDenseTrajectory(Player mainPlayer, float capturePeriod, std::clock_t
 					// coord in cam coord system
 					Vector3 veh_coords_cam;
 
+					GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(veh_coords.x, veh_coords.y, 1000.0, &(veh_coords.z), 0);
 					world2cam(cam, veh_coords, &veh_coords_cam);
 
 					//// 需要输出底面中心坐标，而非中心坐标
 					//veh_coords_cam.x -= dim.x;
 					//veh_coords_cam.y -= dim.y;
-					veh_coords_cam.z -= dim.z;
+					//veh_coords_cam.z -= dim.z;
 
 					//// store annotation
 					//_ofile << vehicleType[veh_type] << " " << veh2cam_distance << " " << truncated_flag << " " <<
@@ -789,8 +790,9 @@ void executeDenseTrajectory(Player mainPlayer, float capturePeriod, std::clock_t
 
 					// store as KITTI form
 					std::string type = get_type(vehicleType[veh_type]);
+					int track_id = vehicles[i];
 					if (type != "0") {
-						_ofile << type << " " << truncated_flag << " " <<
+						_ofile << type << " " << track_id << " " << truncated_flag << " " <<
 							occluded << " " << alpha << " " <<
 							xmin << " " << ymin << " " << xmax << " " << ymax << " " <<
 							2 * dim.z << " " << 2 * dim.x << " " << 2 * dim.y << " " <<
@@ -1520,6 +1522,7 @@ void main()
 		if (_DO_FOLLOW_TRAJECTORY)
 		{
 			executeSparseTrajectory();
+			WAIT(40);
 		}
 		else
 			if (_DO_FOLLOW_DENSE_TRAJECTORY)
