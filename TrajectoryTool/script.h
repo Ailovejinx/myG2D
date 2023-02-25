@@ -118,14 +118,14 @@ void ScriptMain(); // Main functions
 
 /******************************** JYF's functions ****************************************************/
 
-BOOL isOccluded(Vehicle vehicle, Vector3 cam_coord, Vector3 veh_coord); // 判断是否存在遮挡
-void get_2DBB(Vehicle vehicle, Point cam, float* _xmin, float* _ymin, float* _xmax, float* _ymax); // 生成2DBB
+BOOL isOccluded(Entity entity, Vector3 cam_coord, Vector3 veh_coord); // 判断是否存在遮挡
+void get_2DBB(Entity entity, Point cam, float* _xmin, float* _ymin, float* _xmax, float* _ymax); // 生成2DBB
 void get_2D_from_3D(Point cam, Vector3 v, float* x2d, float* y2d);	//3D到2D图像上的坐标转换
 
 void get_2D_from_3D_1(Vector3 world_coord, Point cam, float* x2D_pixel, float* y2D_pixel);
-void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, float* r_y);
-void get_vehicle_values(Vehicle vehicle, Vector3* upVector, Vector3* rightVector, Vector3* forwardVector, Vector3* position, Vector3* dim);
-void get_vehicle_dim(Vehicle vehicle, Vector3* dim);
+void get_angles(Point cam, Vector3 world_coord, Entity entity, float* alpha, float* r_y);
+void get_entity_values(Entity entity, Vector3* upVector, Vector3* rightVector, Vector3* forwardVector, Vector3* position, Vector3* dim);
+void get_entity_dim(Entity entity, Vector3* dim);
 void world2cam(Point cam, Vector3 v, Vector3* d);
 void get_R_matrix(Point cam, float R[9]);
 void get_focal_length(int screenWidth, int screenHeight, float* fx, float* fy);

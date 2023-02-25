@@ -54,11 +54,11 @@ std::string _sparse_trajectory_file_text = "1000/trajectory_sparse.txt";
 std::string _vertex_file_text = "1000/trajectory_sparse.txt";	// 最后用到的是trajectory_sparse.txt，方便起见直接生成之，即省去自定义轨迹序列这一步
 std::string _dense_trajectory_file_text = "1000/trajectory_dense.txt";
 std::string _dataset_dir = "dataset";
-std::string _dataset_image_dir = _dataset_dir + "/" + "image_2/1000";
+std::string _dataset_image_dir = _dataset_dir + "/" + "image_2";
 //std::string _6dpose_im_file_text = "6dpose_list.txt";	// 输出的标注文件
-std::string _anno_file_text_dir = _dataset_dir + "/" + "label_2/1000";	// label输出路径
+std::string _anno_file_text_dir = _dataset_dir + "/" + "label_2";	// label输出路径
 std::int32_t _anno_file_text_id = 0;	// 初始化label文件的ID，从000000.txt开始
-std::string _calib_file_dir = _dataset_dir + "/" + "calib/1000";    // calib输出路径
+std::string _calib_file_dir = _dataset_dir + "/" + "calib";    // calib输出路径
 
 std::ofstream _ofile; // stream to write output files
 std::ofstream _ofile_calib; // stream to write camera calib files
@@ -635,8 +635,12 @@ void executeDenseTrajectory(Player mainPlayer, float capturePeriod, std::clock_t
 	// 建立VEHICLE矩阵，获取所有车辆
 	const int ARR_SIZE = 1024;
 	Vehicle* vehicles = new Vehicle[ARR_SIZE];
-	//Vehicle vehicles[ARR_SIZE];
-	int count = worldGetAllVehicles(vehicles, ARR_SIZE);
+	int veh_count = worldGetAllVehicles(vehicles, ARR_SIZE);
+
+	// 建立pedestrians矩阵，获取所有行人
+	const int ARR_SIZE1 = 1024;
+	Ped* peds = new Ped[ARR_SIZE1];
+	int ped_count = worldGetAllPeds(peds, ARR_SIZE1);
 
 	if (_traj_idx == _trajectory.size())
 	{
@@ -731,11 +735,88 @@ void executeDenseTrajectory(Player mainPlayer, float capturePeriod, std::clock_t
 			_ofile.open(_anno_file_text_dir + "/" + _anno_file_text_name);
 			_ofile_calib.open(_calib_file_dir + "/" + _anno_file_text_name);
 
+			for (int i = 0; i <= ped_count; ++i) {
+				// 判断行人是否在屏幕上，否 则跳过
+				if (!ENTITY::IS_ENTITY_ON_SCREEN(peds[i])) {
+					continue;
+				}
+				// ignore player
+				else if (PED::IS_PED_A_PLAYER(peds[i])) {
+					//log_file << "player\n";
+					continue;
+				}
+				// ignore pedestrians in vehicles or dead pedestrians
+				if (PED::IS_PED_IN_ANY_VEHICLE(peds[i], TRUE) || PED::IS_PED_DEAD_OR_DYING(peds[i], TRUE)) {
+					//log_file << "veicolo o morto\n";
+					continue;
+				}
+				else if (!PED::IS_PED_HUMAN(peds[i])) {
+					//log_file << "non umano\n";
+					continue;
+				}
+				else if (!ENTITY::IS_ENTITY_VISIBLE(peds[i])) {
+					//log_file << "invisibile\n";
+					continue;
+				}
 
-			for (int i = 0; i < count; ++i)
+				Vector3 ped_coords = ENTITY::GET_ENTITY_COORDS(peds[i], TRUE);	// 获取行人坐标
+				float ped2cam_distance = GAMEPLAY::GET_DISTANCE_BETWEEN_COORDS(
+					cam.cam_coord.x, cam.cam_coord.y, cam.cam_coord.z,
+					ped_coords.x, ped_coords.y, ped_coords.z, 1
+				);	// 计算车辆到相机之间的距离
+
+				// 不考虑远处行人
+				if (ped2cam_distance < MAX_DISTANCE) {
+
+					BOOL occluded = isOccluded(peds[i], cam.cam_coord, ped_coords);	// 获取遮挡信息
+
+					// 获取2DBB
+					float xmin, ymin, xmax, ymax;
+					get_2DBB(peds[i], cam, &xmin, &ymin, &xmax, &ymax);
+
+					// truncated
+					BOOL flag1, flag2, flag3, flag4, truncated_flag;
+					flag1 = xmin >= 0;
+					flag2 = ymin >= 0;
+					flag3 = xmax <= _screen_capture_worker.nScreenWidth;
+					flag4 = ymax <= _screen_capture_worker.nScreenHeight;
+
+					truncated_flag = !(flag1 && flag2 && flag3 && flag4);
+
+					// angles
+					float alpha, r_y;
+					get_angles(cam, ped_coords, peds[i], &alpha, &r_y);
+
+					// dim
+					Vector3 dim;
+					get_entity_dim(peds[i], &dim);
+
+					// coord in cam coord system
+					Vector3 ped_coords_cam;
+
+					GAMEPLAY::GET_GROUND_Z_FOR_3D_COORD(ped_coords.x, ped_coords.y, 1000.0, &(ped_coords.z), 0);
+					world2cam(cam, ped_coords, &ped_coords_cam);
+
+					// store as KITTI form
+
+					int track_id = peds[i];
+					_ofile << "Pedestrian" << " " << track_id << " " << truncated_flag << " " <<
+						occluded << " " << alpha << " " <<
+						xmin << " " << ymin << " " << xmax << " " << ymax << " " <<
+						2 * dim.z << " " << 2 * dim.x << " " << 2 * dim.y << " " <<
+						ped_coords_cam.x << " " << -ped_coords_cam.z << " " << ped_coords_cam.y << " " << r_y << std::endl;
+
+				}
+			}
+
+			for (int i = 0; i < veh_count; ++i)
 			{
 				// 判断车辆是否在屏幕上，否 则跳过
 				if (!ENTITY::IS_ENTITY_ON_SCREEN(vehicles[i])) {
+					continue;
+				}
+				else if (!ENTITY::IS_ENTITY_VISIBLE(vehicles[i])) {
+					//log_file << "invisibile\n";
 					continue;
 				}
 
@@ -770,7 +851,7 @@ void executeDenseTrajectory(Player mainPlayer, float capturePeriod, std::clock_t
 
 					// dim
 					Vector3 dim;
-					get_vehicle_dim(vehicles[i], &dim);
+					get_entity_dim(vehicles[i], &dim);
 
 					// coord in cam coord system
 					Vector3 veh_coords_cam;
@@ -804,6 +885,7 @@ void executeDenseTrajectory(Player mainPlayer, float capturePeriod, std::clock_t
 			}
 			// 释放存放车辆的数组
 			delete[] vehicles;
+			delete[] peds;
 
 			_ofile.close();
 
@@ -854,30 +936,30 @@ std::string get_type(std::string vt) {
 
 }
 
-BOOL isOccluded(Vehicle vehicle, Vector3 cam_coord, Vector3 veh_coord)
+BOOL isOccluded(Entity entity, Vector3 cam_coord, Vector3 entity_coord)
 {
 	// 判断是否存在遮挡
 
-	// judge if the cam to the vehicle is occluded by something
-	// useful to detecting occlusions of vehicles
+	// judge if the cam to the entity is occluded by something
+	// useful to detecting occlusions of entities
 	Vector3 end_coords1, surface_norm1;
-	BOOL occlusion_veh;
+	BOOL occlusion_entity;
 	Entity entityHit1 = 0;
 
-	int ray_veh_occlusion = WORLDPROBE::_CAST_RAY_POINT_TO_POINT(
+	int ray_entity_occlusion = WORLDPROBE::_CAST_RAY_POINT_TO_POINT(
 		cam_coord.x, cam_coord.y, cam_coord.z,
-		veh_coord.x, veh_coord.y, veh_coord.z,
-		(~0 ^ (8 | 4)), vehicle, 7
+		entity_coord.x, entity_coord.y, entity_coord.z,
+		(~0 ^ (8 | 4)), entity, 7
 	);
 
-	WORLDPROBE::_GET_RAYCAST_RESULT(ray_veh_occlusion, &occlusion_veh, &end_coords1, &surface_norm1, &entityHit1);
+	WORLDPROBE::_GET_RAYCAST_RESULT(ray_entity_occlusion, &occlusion_entity, &end_coords1, &surface_norm1, &entityHit1);
 
-	return occlusion_veh;
+	return occlusion_entity;
 
 }
 
 
-void get_2DBB(Vehicle vehicle, Point cam, float* _xmin, float* _ymin, float* _xmax, float* _ymax)
+void get_2DBB(Entity entity, Point cam, float* _xmin, float* _ymin, float* _xmax, float* _ymax)
 {
 	// 生成2DBB
 
@@ -890,7 +972,7 @@ void get_2DBB(Vehicle vehicle, Point cam, float* _xmin, float* _ymin, float* _xm
 	Vector3 upVector, rightVector, forwardVector, position; //entity position
 	Vector3 dim;
 
-	get_vehicle_values(vehicle, &upVector, &rightVector, &forwardVector, &position, &dim);
+	get_entity_values(entity, &upVector, &rightVector, &forwardVector, &position, &dim);
 
 	//calculate point FUR and BLL from the center coord
 	FUR.x = position.x + dim.y * rightVector.x + dim.x * forwardVector.x + dim.z * upVector.x;
@@ -975,14 +1057,14 @@ void get_2DBB(Vehicle vehicle, Point cam, float* _xmin, float* _ymin, float* _xm
 
 }
 
-void get_angles(Point cam, Vector3 world_coord, Vehicle vehicle, float* alpha, float* r_y) {
+void get_angles(Point cam, Vector3 world_coord, Entity entity, float* alpha, float* r_y) {
 
 	Vector3 FUR; //Front Upper Right
 	Vector3 BLL; //Back Lower Left
 	Vector3 upVector, rightVector, forwardVector, position; //entity position
 	Vector3 dim;
 
-	get_vehicle_values(vehicle, &upVector, &rightVector, &forwardVector, &position, &dim);
+	get_entity_values(entity, &upVector, &rightVector, &forwardVector, &position, &dim);
 
 	// convert world coord to cam coord
 	Vector3 coord_in_cam, temp, temp_coord_in_cam;
@@ -1056,22 +1138,22 @@ void angle_check(float* angle) {
 
 }
 
-void get_vehicle_values(Vehicle vehicle, Vector3* upVector, Vector3* rightVector, Vector3* forwardVector, Vector3* position, Vector3* dim) {
+void get_entity_values(Entity entity, Vector3* upVector, Vector3* rightVector, Vector3* forwardVector, Vector3* position, Vector3* dim) {
 
-	ENTITY::GET_ENTITY_MATRIX(vehicle, rightVector, forwardVector, upVector, position);
+	ENTITY::GET_ENTITY_MATRIX(entity, rightVector, forwardVector, upVector, position);
 
-	get_vehicle_dim(vehicle, dim);
+	get_entity_dim(entity, dim);
 
 }
 
-void get_vehicle_dim(Vehicle vehicle, Vector3* dim) {
+void get_entity_dim(Entity entity, Vector3* dim) {
 
 	// dim是长宽高的一半
 
 	Vector3 min, max;
 	Hash model; //model hash
 
-	model = ENTITY::GET_ENTITY_MODEL(vehicle);
+	model = ENTITY::GET_ENTITY_MODEL(entity);
 	GAMEPLAY::GET_MODEL_DIMENSIONS(model, &min, &max);
 
 	//calculate size
@@ -1522,7 +1604,7 @@ void main()
 		if (_DO_FOLLOW_TRAJECTORY)
 		{
 			executeSparseTrajectory();
-			WAIT(40);
+			WAIT(40);	// contorl camera speed
 		}
 		else
 			if (_DO_FOLLOW_DENSE_TRAJECTORY)
